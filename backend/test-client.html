@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Number Game</title>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<style>
+
+body{
+ font-family: Arial;
+ background:#111;
+ color:white;
+ text-align:center;
+ padding:40px;
+}
+
+h1{
+ margin-bottom:20px;
+}
+
+#joinBox{
+ margin-bottom:30px;
+}
+
+input{
+ padding:10px;
+ font-size:16px;
+ border-radius:6px;
+ border:none;
+ margin-right:10px;
+}
+
+button{
+ padding:10px 20px;
+ font-size:16px;
+ border:none;
+ border-radius:6px;
+ cursor:pointer;
+ background:#00cc99;
+ color:white;
+}
+
+#game{
+ display:none;
+}
+
+#round{
+ font-size:20px;
+ margin-bottom:10px;
+}
+
+#timer{
+ font-size:30px;
+ margin-bottom:30px;
+ color:#00ffcc;
+}
+
+.grid{
+ display:grid;
+ grid-template-columns: repeat(5,80px);
+ gap:15px;
+ justify-content:center;
+ margin-bottom:30px;
+}
+
+.num{
+ width:80px;
+ height:80px;
+ background:#222;
+ border-radius:10px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ font-size:28px;
+ cursor:pointer;
+ transition:0.2s;
+}
+
+.num:hover{
+ background:#444;
+ transform:scale(1.05);
+}
+
+.selected{
+ background:#0066ff !important;
+}
+
+.winner{
+ background:#00cc66 !important;
+}
+
+#result{
+ font-size:24px;
+ margin-top:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Number Game</h1>
+
+<div id="joinBox">
+ <input id="username" placeholder="Enter your name"/>
+ <button onclick="joinGame()">Join Game</button>
+</div>
+
+<div id="game">
+
+<div id="round">Round: -</div>
+<div id="timer">Timer: -</div>
+
+<div class="grid" id="numbers"></div>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+
+const socket = io("http://localhost:4000")
+
+let username = ""
+let timerInterval
+
+const grid = document.getElementById("numbers")
+
+/*
+=============================
+CREATE NUMBER BUTTONS
+=============================
+*/
+
+for(let i=0;i<=9;i++){
+
+ const div = document.createElement("div")
+ div.className = "num"
+ div.innerText = i
+
+ div.onclick = ()=>{
+  chooseNumber(i)
+ }
+
+ grid.appendChild(div)
+}
+
+/*
+=============================
+JOIN GAME
+=============================
+*/
+
+function joinGame(){
+
+ username = document.getElementById("username").value
+
+ if(!username){
+  alert("Please enter your name")
+  return
+ }
+
+ socket.emit("joinGame",{username:username})
+
+ document.getElementById("joinBox").style.display = "none"
+ document.getElementById("game").style.display = "block"
+
+}
+
+/*
+=============================
+CHOOSE NUMBER
+=============================
+*/
+
+function chooseNumber(num){
+
+ socket.emit("chooseNumber",{number:num})
+
+ document.querySelectorAll(".num").forEach(n=>{
+  n.classList.remove("selected")
+ })
+
+ const selected = [...document.querySelectorAll(".num")]
+  .find(n => n.innerText == num)
+
+ if(selected){
+  selected.classList.add("selected")
+ }
+
+}
+
+/*
+=============================
+ROUND START
+=============================
+*/
+
+socket.on("roundStarted",(data)=>{
+
+ document.getElementById("round").innerText = "Round: "+data.round
+
+ document.getElementById("result").innerText = ""
+
+ document.querySelectorAll(".num").forEach(n=>{
+  n.classList.remove("winner")
+ })
+
+ startTimer(data.time)
+
+})
+
+/*
+=============================
+ROUND RESULT
+=============================
+*/
+
+socket.on("roundResult",(data)=>{
+
+ document.getElementById("result").innerText =
+  "Winning Number: "+data.result
+
+ document.querySelectorAll(".num").forEach(n=>{
+  if(n.innerText == data.result){
+   n.classList.add("winner")
+  }
+ })
+
+})
+
+/*
+=============================
+CURRENT ROUND SYNC
+=============================
+*/
+
+socket.on("currentRound",(data)=>{
+
+ document.getElementById("round").innerText = "Round: "+data.round
+
+ startTimer(data.remainingTime)
+
+})
+
+/*
+=============================
+TIMER
+=============================
+*/
+
+function startTimer(time){
+
+ clearInterval(timerInterval)
+
+ let t = time
+
+ document.getElementById("timer").innerText = "Timer: "+t
+
+ timerInterval = setInterval(()=>{
+
+  t--
+
+  document.getElementById("timer").innerText = "Timer: "+t
+
+  if(t <= 0){
+   clearInterval(timerInterval)
+  }
+
+ },1000)
+
+}
+
+</script>
+
+</body>
+</html>
